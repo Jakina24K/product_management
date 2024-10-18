@@ -35,37 +35,50 @@ if (app.Environment.IsDevelopment())
     app.UseOpenApi();
     app.UseSwaggerUi(config =>
     {
-        config.DocumentTitle = "TodoAPI";
+        config.DocumentTitle = "ProductAPI";
         config.Path = "/swagger";
         config.DocumentPath = "/swagger/{documentName}/swagger.json";
         config.DocExpansion = "list";
     });
 }
 
-app.MapGet("/api/products", async (ProductDb db) =>
-    await db.Products.ToListAsync()
-);
+var productItems = app.MapGroup("/api/products");
 
-app.MapGet("api/products/{id}", async (int id, ProductDb db) =>
-    await db.Products.FindAsync(id)
+productItems.MapGet("/", GetAllProducts);
+productItems.MapGet("/{id}", GetSingleProduct);
+productItems.MapPost("/", AddProducts);
+productItems.MapPut("/{id}", UpdateProduct);
+productItems.MapDelete("/{id}", DeleteProduct);
+
+static async Task<IResult> GetAllProducts(ProductDb db)
+{
+    return TypedResults.Ok(await db.Products.ToListAsync());
+}
+
+static async Task<IResult> GetSingleProduct(int id, ProductDb db)
+{
+    return await db.Products.FindAsync(id)
         is Product product
-            ? Results.Ok(product)
-            : Results.NotFound());
+            ? TypedResults.Ok(product)
+            : TypedResults.NotFound();
 
-app.MapPost("api/products", async (Product product, ProductDb db) =>
+}
+
+static async Task<IResult> AddProducts(Product product, ProductDb db)
 {
     db.Products.Add(product);
     await db.SaveChangesAsync();
 
-    return Results.Created($"/products/{product.Id}", product);
-});
+    return TypedResults.Created($"/products/{product.Id}", product);
+}
 
-app.MapPut("/products/{id}", async (string id, Product inputProduct, ProductDb db) =>
+static async Task<IResult> UpdateProduct(int id, Product inputProduct, ProductDb db)
 {
+
     Console.WriteLine(id);
     var product = await db.Products.FindAsync(id);
 
-    if (product is null) return Results.NotFound();
+    if (product is null) return TypedResults.NotFound();
 
     product.ProductName = inputProduct.ProductName;
     product.Category = inputProduct.Category;
@@ -74,24 +87,24 @@ app.MapPut("/products/{id}", async (string id, Product inputProduct, ProductDb d
     product.ShortName = inputProduct.ShortName;
     product.ThumbnailImageUrl = inputProduct.ThumbnailImageUrl;
     product.Sku = inputProduct.Sku;
-    
+
     await db.SaveChangesAsync();
 
-    return Results.NoContent();
-});
+    return TypedResults.NoContent();
+}
 
-app.MapDelete("api/products/{id}", async (int id, ProductDb db) =>
+static async Task<IResult> DeleteProduct(int id, ProductDb db)
 {
     if (await db.Products.FindAsync(id) is Product product)
     {
         db.Products.Remove(product);
         await db.SaveChangesAsync();
 
-        return Results.NoContent();
+        return TypedResults.NoContent();
     }
 
-    return Results.NotFound();
-});
+    return TypedResults.NotFound();
+}
 
 app.UseCors("product_Management");
 
