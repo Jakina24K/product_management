@@ -6,46 +6,31 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// JWT Authentication setup
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = "product-management",
-            ValidAudience = "product-management",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("productManagement123"))
-        };
-    });
+builder.Services.AddAuthentication()
+    .AddJwtBearer()
+    .AddJwtBearer("LocalAuthIssuer");
 
-// Authorization policy for Admin only
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
-});
-
-// CORS policy
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("admin_greetings", policy => 
+        policy.RequireRole("admin")
+        .RequireClaim("scope", "greetings_api"));
+        
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("product_Management", policy =>
     {
         policy.WithOrigins("*")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .SetIsOriginAllowed(origin => true);
+            .AllowAnyHeader()
+            .AllowAnyMethod().
+            SetIsOriginAllowed(origin => true);
     });
 });
 
-// Database connection
 var connectionString = builder.Configuration.GetConnectionString("DB");
 builder.Services.AddDbContext<ProductDb>(opt => opt.UseSqlServer(connectionString));
 
-// Swagger setup
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApiDocument(config =>
 {
@@ -56,7 +41,6 @@ builder.Services.AddOpenApiDocument(config =>
 
 var app = builder.Build();
 
-// Enable Swagger in development
 if (app.Environment.IsDevelopment())
 {
     app.UseOpenApi();
@@ -69,24 +53,18 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Use the authentication and authorization middleware
-app.UseAuthentication();  // Ensure this is called before UseAuthorization
 app.UseAuthorization();
+app.UseAuthentication();
 app.UseCors("product_Management");
 
-// Group the product routes
 var productItems = app.MapGroup("/api/products");
 
-// Public routes - accessible to all authenticated users
 productItems.MapGet("/", GetAllProducts);
 productItems.MapGet("/{id}", GetSingleProduct);
+productItems.MapPost("/", AddProducts);
+productItems.MapPut("/{id}", UpdateProduct);
+productItems.MapDelete("/{id}", DeleteProduct);
 
-// Protected routes - accessible to admins only
-productItems.MapPost("/", AddProducts).RequireAuthorization("AdminOnly");
-productItems.MapPut("/{id}", UpdateProduct).RequireAuthorization("AdminOnly");
-productItems.MapDelete("/{id}", DeleteProduct).RequireAuthorization("AdminOnly");
-
-// Product CRUD operations
 static async Task<IResult> GetAllProducts(ProductDb db)
 {
     return TypedResults.Ok(await db.Products.ToListAsync());
@@ -98,17 +76,21 @@ static async Task<IResult> GetSingleProduct(int id, ProductDb db)
         is Product product
             ? TypedResults.Ok(product)
             : TypedResults.NotFound();
+
 }
 
 static async Task<IResult> AddProducts(Product product, ProductDb db)
 {
     db.Products.Add(product);
     await db.SaveChangesAsync();
+
     return TypedResults.Created($"/products/{product.Id}", product);
 }
 
 static async Task<IResult> UpdateProduct(int id, Product inputProduct, ProductDb db)
 {
+
+    Console.WriteLine(id);
     var product = await db.Products.FindAsync(id);
 
     if (product is null) return TypedResults.NotFound();
