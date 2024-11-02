@@ -7,7 +7,7 @@ import {
     ViewChild,
     viewChild,
 } from '@angular/core';
-import { ProductService } from '../../service/product.service';
+import { ProductService } from '../../service/productSrv/product.service';
 import { IProduct } from '../../model/product';
 import {
     FormControl,
@@ -15,6 +15,7 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
+import { Router } from '@angular/router';
 
 @Component({
     selector: 'app-products',
@@ -34,7 +35,7 @@ export class ProductsComponent implements OnInit {
 
     productForm: FormGroup = new FormGroup({});
 
-    constructor() {
+    constructor(private router: Router) {
         this.initializeForm();
     }
 
@@ -61,10 +62,15 @@ export class ProductsComponent implements OnInit {
     }
 
     loadProducts() {
-        this.productSrv.getAllProducts().subscribe((res: IProduct[]) => {
-            console.log(res);
-            this.productList.set(res);
-        });
+        this.productSrv.getAllProducts().subscribe(
+            (res: IProduct[]) => {
+                console.log(res);
+                this.productList.set(res);
+            },
+            (error) => {
+                this.router.navigate(["/"])
+            },
+        );
     }
 
     openModal() {

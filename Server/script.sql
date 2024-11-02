@@ -51,3 +51,14 @@ IF NOT EXISTS (SELECT name FROM sys.tables WHERE name='users_roles')
         (0,0,0),
         (1,1,1)
     END
+
+IF NOT EXISTS (SELECT name FROM sys.tables WHERE name='user_session')
+    BEGIN
+        CREATE TABLE user_session (
+            id INT IDENTITY(0,1) PRIMARY KEY,
+            user_id INT NOT NULL,
+            duration INT NOT NULL,
+            created_at DATETIME NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    END

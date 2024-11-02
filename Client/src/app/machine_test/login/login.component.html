@@ -1,19 +1,24 @@
 <div class="card text-center login-form">
-    <div class="inner-login-form">
-        <div>
-            <label for="">Username</label>
-            <input type="text" class="form-control" />
-        </div>
+    <form [formGroup]="LoginForm">
+        <div class="inner-login-form">
+            <div>
+                <label for="">Email</label>
+                <input type="text" formControlName="email" class="form-control" />
+            </div>
 
-        <div>
-            <label for="">Password</label>
-            <input type="text" class="form-control" />
-        </div>
+            <div>
+                <label for="">Password</label>
+                <input type="text" formControlName="password" class="form-control" />
+            </div>
 
-        <div>
-            <button class="btn btn-warning" routerLink="/products-component">
-                Log in
-            </button>
+            <div>
+                <button
+                    class="btn btn-warning"
+                    (click)="LogUser()"
+                >
+                    Log in
+                </button>
+            </div>
         </div>
-    </div>
+    </form>
 </div>

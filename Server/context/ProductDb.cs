@@ -12,5 +12,7 @@ namespace Server.context
         }
 
         public DbSet<Product> Products => Set<Product>();
+        public DbSet<Session> UserSessions => Set<Session>();
+        public DbSet<UserInfo> Users => Set<UserInfo>();
     }
 }
