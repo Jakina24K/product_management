@@ -1,0 +1,10 @@
+.content {
+    position: absolute;
+    width: 95%;
+    left: 3%;
+    top: 3%;
+}
+
+.header {
+    box-shadow: -1px 3px 3px 3px rgb(226, 226, 226);   
+}

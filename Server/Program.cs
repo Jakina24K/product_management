@@ -48,13 +48,16 @@ app.MapPost("/api/products/login", async (HttpContext httpContext, ProductDb db,
     Console.WriteLine("ici la valeur de ID :" + user!.Id);
 
     if (user == null)
-        return TypedResults.Unauthorized();
+        return Results.Unauthorized();
 
     var session = new Session() {
         UserId = (int)user.Id!,
         Duration = 3600,
         CreatedAt = DateTime.Now,
     };
+
+    db.UserSessions.Add(session);
+    await db.SaveChangesAsync();
 
     httpContext.Response.Cookies.Append("jshL15Pa", user.Id.ToString()!, new CookieOptions {
         HttpOnly = true,
@@ -63,35 +66,45 @@ app.MapPost("/api/products/login", async (HttpContext httpContext, ProductDb db,
         Secure = false
     });
 
-
-    db.UserSessions.Add(session);
-    await db.SaveChangesAsync();
-
     return Results.Ok();
 });
 
 app.MapDelete("/api/products/logout", async (HttpContext httpContext, ProductDb db) => {
+    var sessionIdString = httpContext.Request.Cookies["jshL15Pa"];
+    Console.WriteLine("Session ID from cookie: " + sessionIdString);
 
-    var userSessionId = httpContext.Request.Cookies["jshL15Pa"];
-    Console.WriteLine("User Id must be there :" + userSessionId);
-    if (userSessionId == null) {
+    if (sessionIdString == null) {
         return Results.Unauthorized();
     }
 
-    if (!int.TryParse(userSessionId, out int userId)) {
+    if (!int.TryParse(sessionIdString, out int sessionId)) {
         return Results.BadRequest("Invalid session ID.");
     }
-    var session = db.UserSessions.FirstOrDefault(s => s.Id == userId);
+
+    var allSessions = db.UserSessions.ToList();
+    Console.WriteLine("Current sessions in the database:");
+    foreach (var s in allSessions) {
+        Console.WriteLine($"Session ID: {s.Id}, User ID: {s.UserId}, Created At: {s.CreatedAt}");
+    }
+
+    var session = db.UserSessions
+        .Where(s => s.UserId == sessionId)
+        .OrderByDescending(s => s.Id)
+        .FirstOrDefault();
 
     if (session != null) {
         db.UserSessions.Remove(session);
         await db.SaveChangesAsync();
+        Console.WriteLine("Session deleted successfully.");
+    } else {
+        Console.WriteLine("Session not found.");
     }
 
     httpContext.Response.Cookies.Delete("jshL15Pa");
 
-    return Results.Ok();
+    return Results.Ok("Logged out successfully.");
 });
+
 
 var productItems = app.MapGroup("/api/products");
 
