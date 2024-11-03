@@ -16,6 +16,7 @@ import {
     Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
+import { LoginService } from '../../service/loginSrv/login.service';
 
 @Component({
     selector: 'app-products',
@@ -28,6 +29,8 @@ export class ProductsComponent implements OnInit {
     @ViewChild('newModal') modal: ElementRef | undefined;
 
     productSrv = inject(ProductService);
+
+    loginSrv = inject(LoginService);
 
     productList = signal<IProduct[]>([]);
 
@@ -68,7 +71,7 @@ export class ProductsComponent implements OnInit {
                 this.productList.set(res);
             },
             (error) => {
-                this.router.navigate(["/"])
+                this.router.navigate(['/']);
             },
         );
     }
@@ -134,6 +137,17 @@ export class ProductsComponent implements OnInit {
                 this.openModal();
             },
             (error) => {
+                alert('API error');
+            },
+        );
+    }
+
+    UserLogOut() {
+        this.loginSrv.UserLogOut().subscribe(
+            () => {
+                this.router.navigate(['/']);
+            },
+            () => {
                 alert('API error');
             },
         );

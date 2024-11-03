@@ -17,4 +17,10 @@ export class LoginService {
             },
         );
     }
+
+    UserLogOut() {
+        return this.http.delete('http://localhost:5283/api/products/logout', {
+            withCredentials: true,
+        });
+    }
 }

@@ -1,3 +1,4 @@
+using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using Server.context;
 using Server.model;
@@ -41,7 +42,10 @@ if (app.Environment.IsDevelopment()) {
 app.UseCors("product_Management");
 
 app.MapPost("/api/products/login", async (HttpContext httpContext, ProductDb db, UserInfo userInfo) => {
+
     var user = db.Users.FirstOrDefault((user) => user.Email == userInfo.Email);
+
+    Console.WriteLine("ici la valeur de ID :" + user!.Id);
 
     if (user == null)
         return TypedResults.Unauthorized();
@@ -52,7 +56,7 @@ app.MapPost("/api/products/login", async (HttpContext httpContext, ProductDb db,
         CreatedAt = DateTime.Now,
     };
 
-    httpContext.Response.Cookies.Append("jshL15Pa", "123", new CookieOptions {
+    httpContext.Response.Cookies.Append("jshL15Pa", user.Id.ToString()!, new CookieOptions {
         HttpOnly = true,
         SameSite = SameSiteMode.Lax,
         MaxAge = TimeSpan.FromSeconds(3600),
@@ -66,14 +70,33 @@ app.MapPost("/api/products/login", async (HttpContext httpContext, ProductDb db,
     return Results.Ok();
 });
 
+app.MapDelete("/api/products/logout", async (HttpContext httpContext, ProductDb db) => {
+
+    var userSessionId = httpContext.Request.Cookies["jshL15Pa"];
+    Console.WriteLine("User Id must be there :" + userSessionId);
+    if (userSessionId == null) {
+        return Results.Unauthorized();
+    }
+
+    if (!int.TryParse(userSessionId, out int userId)) {
+        return Results.BadRequest("Invalid session ID.");
+    }
+    var session = db.UserSessions.FirstOrDefault(s => s.Id == userId);
+
+    if (session != null) {
+        db.UserSessions.Remove(session);
+        await db.SaveChangesAsync();
+    }
+
+    httpContext.Response.Cookies.Delete("jshL15Pa");
+
+    return Results.Ok();
+});
+
 var productItems = app.MapGroup("/api/products");
 
 productItems.MapGet("/", async (ProductDb db, HttpContext httpContext) => {
     var authCookie = httpContext.Request.Cookies.FirstOrDefault((cookie) => cookie.Key == "jshL15Pa");
-
-    Console.WriteLine("mande rangah ty ah");
-
-    Console.WriteLine(authCookie.Key);
 
     if (string.IsNullOrEmpty(authCookie.Key)) {
         return Results.StatusCode(403);
@@ -82,41 +105,21 @@ productItems.MapGet("/", async (ProductDb db, HttpContext httpContext) => {
     return Results.Ok(await db.Products.ToListAsync());
 });
 
-productItems.MapGet("/{id}", GetSingleProduct);
-productItems.MapPost("/", AddProducts);
-productItems.MapPut("/{id}", UpdateProduct);
-productItems.MapDelete("/{id}", DeleteProduct);
-
-// static async Task<IResult> GetAllProducts(ProductDb db, HttpContext httpContext) {
-//     var authCookie = httpContext.Request.Cookies.FirstOrDefault((cookie) => cookie.Key == "jshL15Pa");
-
-//     Console.WriteLine(authCookie.Value);
-
-//     if(authCookie.Key == "") {
-//         return TypedResults.Forbid();
-//     }
-
-//     return TypedResults.Ok(await db.Products.ToListAsync());
-// }
-
-static async Task<IResult> GetSingleProduct(int id, ProductDb db) {
+productItems.MapGet("/{id}", async (int id, ProductDb db) => {
     return await db.Products.FindAsync(id)
-        is Product product
-            ? TypedResults.Ok(product)
-            : TypedResults.NotFound();
+         is Product product
+             ? Results.Ok(product)
+             : Results.NotFound();
+});
 
-}
-
-static async Task<IResult> AddProducts(Product product, ProductDb db) {
+productItems.MapPost("/", async (Product product, ProductDb db) => {
     db.Products.Add(product);
     await db.SaveChangesAsync();
 
-    return TypedResults.Created($"/products/{product.Id}", product);
-}
+    return Results.Created($"/products/{product.Id}", product);
+});
 
-static async Task<IResult> UpdateProduct(int id, Product inputProduct, ProductDb db) {
-
-    Console.WriteLine(id);
+productItems.MapPut("/{id}", async (int id, Product inputProduct, ProductDb db) => {
     var product = await db.Products.FindAsync(id);
 
     if (product is null) return TypedResults.NotFound();
@@ -131,18 +134,18 @@ static async Task<IResult> UpdateProduct(int id, Product inputProduct, ProductDb
 
     await db.SaveChangesAsync();
 
-    return TypedResults.NoContent();
-}
+    return Results.NoContent();
+});
 
-static async Task<IResult> DeleteProduct(int id, ProductDb db) {
+productItems.MapDelete("/{id}", async (int id, ProductDb db) => {
     if (await db.Products.FindAsync(id) is Product product) {
         db.Products.Remove(product);
         await db.SaveChangesAsync();
 
-        return TypedResults.NoContent();
+        return Results.NoContent();
     }
 
-    return TypedResults.NotFound();
-}
+    return Results.NotFound();
+});
 
 app.Run();
